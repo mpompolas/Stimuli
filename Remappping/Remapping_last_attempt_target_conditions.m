@@ -2,17 +2,24 @@
 
 %% Events
 
-% 1,2,3,4,5,6,7       : No. of P2 probe ON  - Fixation on FP1
-% 11,12,13,14,15,16,17: No. of P2 probe ON  - Fixation on FP2
-% 21,22,23,24,25,26,27: No. of P2 probe OFF - Fixation on FP1
-% 31,32,33,34,35,36,37: No. of P2 probe OFF - Fixation on FP2
+% 101 : Fixation 1 ON (LEFT) 
+% 102 : Fixation 2 ON (RIGHT)
 
-% 41,42,43,44,45,46,47: No. of P1 probe ON  - Fixation on FP1
-% 51,52,53,54,55,56,57: No. of P1 probe ON  - Fixation on FP2
-% 61,62,63,64,65,66,67: No. of P1 probe OFF - Fixation on FP1
-% 71,72,73,74,75,76,77: No. of P1 probe OFF - Fixation on FP2
+% left_arrow_button_press_event  : 10
+% right_arrow_button_press_event : 20
 
-% 101,102             : Fixation points FP1 and FP2 ON.
+%  1, 2: No. of P2 probe ON  - Fixation on FP1
+% 11,12: No. of P2 probe ON  - Fixation on FP2
+
+% 41,42: No. of P1 probe ON  - Fixation on FP1
+% 51,52: No. of P1 probe ON  - Fixation on FP2
+
+% 2 probes appear. One between the two targets, and one outside the screen
+% 90% of the trials, the probe in the middle will appear for P2.
+% For P1, all the trials will show the P1 probe.
+
+% The subjects need to press a button after every P2 probe presentation
+
 
 %% Important Variables
 
@@ -22,7 +29,7 @@ run = 1;
 
 
 
-number_of_trials = 20; % Each trial is ~4.5 sec. 150 trials ~=11 minutes
+number_of_trials = 5; % Each trial is ~4.5 sec. 150 trials ~=11 minutes
 
 response_latency                       = 0.05; % Response latency of the subject. IN SECONDS. This is crucial for P2 presentation. 
 
@@ -35,7 +42,7 @@ stim.distance_between_FPs              =   10; % SACCADE DISTANCE. IN DEGREES! A
 %% Initiation values !!!!!
 
 stim.FP_size         = 0.3; % RADIUS OF FIXATION POINT. IN DEGREES
-triangle_size        = 8;  % Size of Triangle for P2 projection on the target. IN PIXELS 
+triangle_size        = 6;  % Size of Triangle for P2 projection on the target. IN PIXELS 
 
 
 
@@ -128,7 +135,7 @@ anglesRad = anglesDeg * (pi / 180);
 % fixation point
 
 % Set the color of the triangle
-rectColor = [0 1 1];
+rectColor = [0 255 0];
 
 % Cue to tell PTB that the polygon is convex (concave polygons require much
 % more processing)
@@ -154,25 +161,30 @@ biased_selection = [1 1 1 1 1 1 1 1 1 2]; % selection of 1 90% and 2 10%
 % disp('Press a key to continue');
 % KbWait;
 % pause(.5)
-% 
+
+
+KbName('UnifyKeyNames');
+activeKeys = [KbName('LeftArrow') KbName('RightArrow')];
+RestrictKeysForKbCheck(activeKeys);
+
 Screen('FillRect', stim.displayParams.window, stim.backgroundColor);
+
+succesful_trials = 0;
+nButtonPresses = 0;
+reactionTimes = [];
+ButtonsPressedNames = [];
+ButtonsPressedCodes = [];
 
 while trial <number_of_trials+1
 
-    % DELETE ME %%%%%%%%%%%%%%%%%%%%%
-    if KbCheck(-1)
-        break;
-    end
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     for fixation = 1:2
         
         
         % Present Fixation point
         Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
-        lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+rand(1)*1+0.5);     %500-1500msec
+        lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+rand(1)*1+0.8);     %500-1500msec
         
-
         %io64(ioObj,address,100+fixation); % 101,102 indicate the fixation
         WaitSecs(0.001);
         %io64(ioObj,address,0);
@@ -185,7 +197,7 @@ while trial <number_of_trials+1
 % % % % %         
 % % % % %         [aa,bb]=hist(a,unique(a));
         
-        iprobes = [biased_selection(randi(10,1,1)) biased_selection(randi(10,1,1))]; % One for P1 and 1 for P2
+        iprobes = [1 biased_selection(randi(10,1,1))]; % One for P1 and 1 for P2. P1 will always present the probe inside the screen
 
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -196,11 +208,13 @@ while trial <number_of_trials+1
         
         % Create triangle within the PROJECTED FIXATION POINT 
         triangle_direction = [-1,1];
-        xTriangles = triangle_direction(randi(2,1,1))*cos(anglesRad) .* triangle_size + stim.fixPoint.x(fixation);
+        triangle_direction = triangle_direction(randi(2,1,1)); % -1 left, 1 right
+        
+        xTriangles = triangle_direction*cos(anglesRad) .* triangle_size + stim.fixPoint.x(fixation);
         yTriangles =                                  sin(anglesRad) .* triangle_size + stim.fixPoint.y(fixation);
         Screen('FillPoly', stim.displayParams.window, [], [xTriangles yTriangles], isConvex);
         
-        lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+response_latency);  % Response latency of the subject  
+        lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+response_latency);  % Response latency of the subject - approximated  
         %io64(ioObj,address,iprobes(2)+(fixation-1)*10);
         WaitSecs(0.001);
         %io64(ioObj,address,0);
@@ -208,13 +222,70 @@ while trial <number_of_trials+1
         % Remove P2 and triangle but keep fixation point
         Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
         lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+0.05);          
-        %io64(ioObj,address,iprobes(2)+(fixation-1)*10+20);
-        WaitSecs(0.001);
-        %io64(ioObj,address,0);
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         
+        % WAIT FOR BUTTON PRESS
+        definedKeyPressed = false;
+        tStart = GetSecs;
+        while ~definedKeyPressed 
+           
+            [keyIsDown, keyTime, KeyCode ] = KbCheck; 
+             WaitSecs(0.002);
+            definedKeyPressed = KeyCode(KbName('LeftArrow')) || KeyCode(KbName('RightArrow'));
+            
+            % After 5 seconds of waiting for Button Press, Timeout
+            if keyTime - tStart > 5
+                definedKeyPressed = 1;
+            end
+            
+            reactionTimes       = [reactionTimes keyTime-tStart];
+            ButtonsPressedNames = [ButtonsPressedNames KbName(KeyCode)];
+            ButtonsPressedCodes = [ButtonsPressedCodes KeyCode];
+                        
+            
+            % Left arrow pressed
+            if KeyCode(KbName('LeftArrow')) 
+                nButtonPresses = nButtonPresses + 1;
+                %io64(ioObj,address,10);
+                WaitSecs(0.001);
+                %io64(ioObj,address,0);
+                
+                if triangle_direction == -1 % Correct trial
+                    succesful_trials = succesful_trials + 1;
+                    Screen('gluDisk', stim.displayParams.window, [0,255,0], stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime);
+                    Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+0.15);  
+                elseif triangle_direction == 1 % Incorrect trial
+                    Screen('gluDisk', stim.displayParams.window, [127,127,127], stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime);  
+                    Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+0.15);  
+                end
 
+            % Right arrow pressed
+            elseif KeyCode(KbName('RightArrow'))
+                nButtonPresses = nButtonPresses + 1;
+                %io64(ioObj,address,20);
+                WaitSecs(0.001);
+                %io64(ioObj,address,0);
+                
+                if triangle_direction == 1 % Correct trial
+                    succesful_trials = succesful_trials + 1;
+                    Screen('gluDisk', stim.displayParams.window, [0,255,0], stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime);  
+                    Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+0.15);  
+                elseif triangle_direction == -1 % Incorrect trial
+                    Screen('gluDisk', stim.displayParams.window, [127,127,127], stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime);  
+                    Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
+                    lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+0.15);  
+                end
+            end
+        end
+        
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Present P1 and fixation point
         Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
@@ -228,15 +299,26 @@ while trial <number_of_trials+1
         % Remove P1 but keep fixation point
         Screen('gluDisk', stim.displayParams.window, stim.FPColor, stim.fixPoint.x(fixation), stim.fixPoint.y(fixation), stim.fixPoint.sizePix ); 
         lastFlipTime = Screen('Flip',stim.displayParams.window,lastFlipTime+0.05);          
-        %io64(ioObj,address,iprobes(1)+(fixation-1)*10+60);
-        WaitSecs(0.001);
-        %io64(ioObj,address,0);
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%         Screen('Close', stim.probetexture);
+%         Screen('Close', stim.photodiode_texture);
+        
 
     end
 
     trial = trial+1;
 
+    if ~mod(trial,10)
+        disp(['Percentage Correct trials: ' num2str(succesful_trials/nButtonPresses*100) '%'])
+        disp(['Total Trials: ' num2str(nButtonPresses)]) 
+        disp(['Avg Reaction Time: ' num2str(round(mean(reactionTimes*10000))/10) ' ms'])
+        disp(' ')
+        disp(' ')
+        disp(' ')
+    end
+    
+    
 end
   
 if run == 6
@@ -251,8 +333,24 @@ KbWait;
 
 
 
-
-Screen('CloseAll')
+Screen('CloseAll');
 Priority(0);%drop priority back to normal
-ShowCursor
+ShowCursor;
 clear mex
+
+
+
+
+disp(['Percentage Correct trials: ' num2str(succesful_trials/nButtonPresses*100) '%'])
+disp(['Total Trials: ' num2str(nButtonPresses)]) 
+disp(['Avg Reaction Time: ' num2str(round(mean(reactionTimes*10000))/10) ' ms'])
+disp(' ')
+disp(' ')
+disp(' ')
+
+
+
+
+
+
+
